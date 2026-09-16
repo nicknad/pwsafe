@@ -1,0 +1,71 @@
+rules:
+  - id: pwsafe-no-debug-macros
+    languages: [rust]
+    severity: ERROR
+    message: >-
+      dbg!/todo!/unimplemented!/unreachable!/panic! must not ship in a password
+      tool: dbg! prints values to stderr and the others abort at runtime
+      (panic = abort).
+    pattern-either:
+      - pattern: dbg!(...)
+      - pattern: todo!(...)
+      - pattern: unimplemented!(...)
+      - pattern: unreachable!(...)
+      - pattern: panic!(...)
+
+  - id: pwsafe-no-raw-printing
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      Use the say!/problem! helpers from src/output.rs instead of printing
+      directly: they tolerate broken pipes so clipboard cleanup always runs,
+      and they keep secrets out of stdout/stderr.
+    pattern-either:
+      - pattern: println!(...)
+      - pattern: print!(...)
+      - pattern: eprintln!(...)
+      - pattern: eprint!(...)
+      - pattern: std::println!(...)
+      - pattern: std::print!(...)
+      - pattern: std::eprintln!(...)
+      - pattern: std::eprint!(...)
+      - pattern: writeln!(...)
+      - pattern: write!(...)
+      - pattern: std::io::stdout().write(...)
+      - pattern: std::io::stdout().write_all(...)
+      - pattern: std::io::stderr().write(...)
+      - pattern: std::io::stderr().write_all(...)
+
+  - id: pwsafe-no-env-mutation
+    languages: [rust]
+    severity: ERROR
+    message: >-
+      Mutating the process environment can leak into child processes and is
+      never needed by pwsafe.
+    pattern-either:
+      - pattern: std::env::set_var(...)
+      - pattern: std::env::remove_var(...)
+
+  - id: pwsafe-review-file-writes
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      pwsafe writes files only in src/vault.rs, and only DPAPI ciphertext.
+      Verify that any new write path cannot put plaintext secrets on disk.
+    paths:
+      exclude:
+        - src/vault.rs
+    pattern-either:
+      - pattern: std::fs::write(...)
+      - pattern: std::fs::File::create(...)
+
+  - id: pwsafe-no-shell-out
+    languages: [rust]
+    severity: ERROR
+    message: >-
+      A secret-handling process must not spawn other processes (command
+      injection and secret-exposure risk).
+    pattern-either:
+      - pattern: std::process::Command::new(...)
+      - pattern: process::Command::new(...)
+      - pattern: tokio::process::Command::new(...)
